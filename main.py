@@ -328,7 +328,7 @@ class Maze:
             print(f"Invalid cell encountered in _has_wall_blocking({i=},{j=},{i_=},{j_=})")
             return True
 
-    def solve(self):
+    def dfs_solve(self):
         '''
         return True if maze is solved, else False
         '''
@@ -412,18 +412,20 @@ class Maze:
 
 
 def main(interative_mode=False):
-    # create window to be displayed (width, height)
-    win = Window(1000, 1000)
-
     if interative_mode:
         while True:
+            width = int(input("Window Width (int): "))
+            height = int(input("Window Height (int): "))
+            win = Window(width, height)
+
             rows = int(input("Number of Rows (int): "))
             cols = int(input("Number of Cols (int): "))
             seed = int(input("Seed (int): "))
-            solve_algo = int(input("Maze Solving Algorithm? (Give number)\n1. DFS\n"))
             maze = Maze(10,10,rows,cols,25,25,win,seed)
+
+            solve_algo = int(input("Maze Solving Algorithm? (Give number)\n1. DFS\n"))
             if solve_algo == 1:
-                maze.solve()
+                maze.dfs_solve()
             else:
                 print("Invalid choice.")
             ans = input("Run again? [y/n]: ")
@@ -433,7 +435,9 @@ def main(interative_mode=False):
             del maze
     else:
         # Maze params: start_x, start_y, rows, cols, size_x, size_y
-        maze = Maze(10,10,10,10,25,25,win,seed=None)
+        win = Window(250,250)
+        maze = Maze(10,10,5,5,25,25,win,seed=None)
+        maze.dfs_solve()
 
     win.wait_for_close()
 
