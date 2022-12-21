@@ -311,6 +311,20 @@ class Maze:
             for j in range(self.cols):
                 self._cells[i][j].visited = False
 
+    #TODO: 
+    def solve(self):
+        '''
+        return True if maze is solved, else False
+        '''
+        pass 
+
+    def _solve_r(self, i=0, j=0):
+        '''
+        return True if maze is solved, else False
+        '''
+
+        pass
+
 
 
 
