@@ -81,7 +81,7 @@ class Cell:
         to_point = Point((to_cell.top_left_corner.x+to_cell.bottom_right_corner.x)//2, (to_cell.top_left_corner.y+to_cell.bottom_right_corner.y)//2)
         l = Line(from_point, to_point)
         if undo:
-            l.draw(self.canvas, "white")
+            l.draw(self.canvas, "gray")
         else:
             l.draw(self.canvas, fill_color)
 
@@ -95,8 +95,7 @@ class Window:
         self.root = Tk()
         self.root.title("Maze Solver")
         self.root.protocol("WM_DELETE_WINDOW", self.close)
-        self.canvas = Canvas() 
-        self.canvas.configure(bg="white")
+        self.canvas = Canvas(self.root, bg="white", width=self.width, heigh=self.height) 
         self.canvas.pack()# pack canvas to be ready to be drawn
         self.is_running = False
     
@@ -117,6 +116,10 @@ class Window:
 
     def draw_cell(self, cell : Cell, fill_color : str):
         cell.draw(fill_color)
+    
+    def clear(self):
+        # clears the cavas
+        self.canvas.delete("all")
 
 
 
@@ -142,7 +145,7 @@ class Maze:
         self._break_entrance_and_exit()
         self._break_walls_r(0,0)
         self._reset_cells_visited()
-        self.solve()
+        
 
     def _create_cells(self):
         '''
@@ -173,7 +176,7 @@ class Maze:
         # refresh canvas
         self.win.redraw()
         # slow down to allow for seeing the animation
-        time.sleep(0.05)
+        time.sleep(0.02)
 
 
     def _break_entrance_and_exit(self):
@@ -408,13 +411,31 @@ class Maze:
 
 
 
-def main():
+def main(interative_mode=False):
     # create window to be displayed (width, height)
-    win = Window(800, 600)
+    win = Window(1000, 1000)
 
-    # Maze params: start_x, start_y, rows, cols, size_x, size_y
-    maze = Maze(10,10,8,10,25,25,win,seed=None)
+    if interative_mode:
+        while True:
+            rows = int(input("Number of Rows (int): "))
+            cols = int(input("Number of Cols (int): "))
+            seed = int(input("Seed (int): "))
+            solve_algo = int(input("Maze Solving Algorithm? (Give number)\n1. DFS\n"))
+            maze = Maze(10,10,rows,cols,25,25,win,seed)
+            if solve_algo == 1:
+                maze.solve()
+            else:
+                print("Invalid choice.")
+            ans = input("Run again? [y/n]: ")
+            if ans.lower() == "n":
+                exit(0)
+            win.clear()
+            del maze
+    else:
+        # Maze params: start_x, start_y, rows, cols, size_x, size_y
+        maze = Maze(10,10,10,10,25,25,win,seed=None)
+
     win.wait_for_close()
 
 if __name__ == "__main__":
-    main()
+    main(interative_mode=True)
