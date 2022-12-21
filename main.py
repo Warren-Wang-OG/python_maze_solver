@@ -1,4 +1,6 @@
+# Following this project idea:
 # https://boot.dev/project/2b266bb4-2262-49c0-b6d1-75cd8c5e8be8/5b463508-3371-4df9-8a5c-228431af21b9
+# All code, however, is written by me. 
 from __future__ import annotations # type hinting stuff
 from tkinter import Tk, BOTH, Canvas
 import time
@@ -78,7 +80,10 @@ class Cell:
         from_point = Point((self.top_left_corner.x+self.bottom_right_corner.x)//2, (self.top_left_corner.y+self.bottom_right_corner.y)//2)
         to_point = Point((to_cell.top_left_corner.x+to_cell.bottom_right_corner.x)//2, (to_cell.top_left_corner.y+to_cell.bottom_right_corner.y)//2)
         l = Line(from_point, to_point)
-        l.draw(self.canvas, fill_color)
+        if undo:
+            l.draw(self.canvas, "white")
+        else:
+            l.draw(self.canvas, fill_color)
 
         
 
@@ -137,6 +142,7 @@ class Maze:
         self._break_entrance_and_exit()
         self._break_walls_r(0,0)
         self._reset_cells_visited()
+        self.solve()
 
     def _create_cells(self):
         '''
@@ -160,14 +166,14 @@ class Maze:
             self.win.draw_cell(self._cells[i][j], "black")
             self._animate()
         else:
-            print("NOTE: win is None")
+            print("NOTE: win is None, probably for unit testing")
         
 
     def _animate(self):
         # refresh canvas
         self.win.redraw()
+        # slow down to allow for seeing the animation
         time.sleep(0.05)
-        # time.sleep(0.5)
 
 
     def _break_entrance_and_exit(self):
@@ -211,45 +217,26 @@ class Maze:
         # mark current cell as visited
         self._cells[i][j].visited = True
         
-        # possible routes from here (left, right, top, down)
-        # what happens when reaching the edges tho? don't want to access cells that don't exist, will get error
-        # make sure are within bounds
-
-        # top, down, left, right
+        # possible routes from here: top, down, left, right
         directions = [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]
-        print(f"before any checks: {directions=}")
-
 
         # check bounds and keep only unvisited cells    
         tmp = [] # keep track of elements that might need removal
         for tup in directions:
-            print(f"checking {tup}")
             if not self._is_valid_cell(tup[0], tup[1]):
-                print(f"remove {tup}")
                 tmp.append(tup)
-            else:
-                print(f"KEEP {tup}")
-
         for e in tmp:
             directions.remove(e)
         tmp.clear()
-
-        print(f"after bounds {directions=}")
         
+        # remove already visited cells
         for tup in directions:
-            print(f"checking {tup} if visited")
             i_, j_ = tup[0], tup[1]
             if self._cells[i_][j_].visited == True:
-                print(f"remove {tup}")
                 tmp.append(tup)
-            else:
-                print(f"keep {tup}")
-
         for e in tmp:
             directions.remove(e)
         tmp.clear()
-        
-        print(f"after visited {directions=}")
         
         while True:
             # need to check if any nodes have already been visited, remove then from directions
@@ -272,10 +259,6 @@ class Maze:
                 return
             tup = directions[x]
             i_,j_ = tup[0], tup[1]
-            print(f"chosen ({i_=},{j_=})")
-
-            # don't need to mark new cell as visited, recursive call will mark it
-            # self._cells[i_][j_].visited = True
 
             directions.remove(tup)
             # break down wall between current cell (i,j) and (i_,j_)
@@ -299,11 +282,10 @@ class Maze:
                 # break top wall of other cell
                 self._cells[i_][j_].walls[2] = 0
 
+            # draw other cell
             self._draw_cells(i_, j_)
-            # recursively go to cell
-            print("recursive jumping")
+            # recursively go to other cell
             self._break_walls_r(i_, j_)
-            print("return from recursive call")
 
     def _reset_cells_visited(self):
         # reset all cells visited property to false
@@ -311,48 +293,127 @@ class Maze:
             for j in range(self.cols):
                 self._cells[i][j].visited = False
 
-    #TODO: 
+    def _has_wall_blocking(self, i,j,i_,j_):
+        '''
+        return True if there is a wall in between 
+        the cell (i,j) and (i_,j_)
+        else return False for no wall blocking
+        walls order: (left, right, top, down)
+        '''
+        if i_ < i and j_ == j:
+            # other cell is above, check other cell down wall
+            if self._cells[i_][j_].walls[3] == 1:
+                return True
+            return False
+        elif i_ > i and j_ == j:
+            # other cell is below, check other cell top wall
+            if self._cells[i_][j_].walls[2] == 1:
+                return True
+            return False
+        elif i_ == i and j_ < j:
+            # other cell is to the left, check other cell right wall
+            if self._cells[i_][j_].walls[1] == 1:
+                return True
+            return False
+        elif i_ == i and j_ > j:
+            # other cell is to the right, check other cell left wall
+            if self._cells[i_][j_].walls[0] == 1:
+                return True
+            return False
+        else:
+            # invalid cell!!
+            print(f"Invalid cell encountered in _has_wall_blocking({i=},{j=},{i_=},{j_=})")
+            return True
+
     def solve(self):
         '''
         return True if maze is solved, else False
         '''
-        pass 
+        if self._solve_r():
+            print("Maze solved!")
+        else:
+            print("Could not solve Maze.")
 
     def _solve_r(self, i=0, j=0):
         '''
         return True if maze is solved, else False
+        goal cell is at (i,j) = (self.rows-1, self.cols-1)
+        start is default (i,j) = (0,0)
+        
         '''
+        # draw 
+        self._animate()
 
-        pass
+        # mark current cell as visited
+        self._cells[i][j].visited = True
+
+        # immediately end if at goal cell
+        if i == self.rows-1 and j == self.cols-1:
+            return True
+        
+        # not at end, continue working thru the maze
+        # start with all directions
+        # top, down, left, right
+        directions = [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]
+
+        # ignore cells that:
+        # 1. Have a wall between you and it
+        # 2. Have already been visited
+        # in other words, start with only considering cells that have no wall blocking and hasn't been visited yet
+        tmp = []
+
+        # keep only valid cells (cells inside the maze)
+        for tup in directions:
+            if not self._is_valid_cell(tup[0], tup[1]):
+                tmp.append(tup)
+        for e in tmp:
+            directions.remove(e)
+        tmp.clear()
+
+        # check if open path (no wall)
+        for tup in directions:
+            i_,j_ = tup[0],tup[1]
+            if self._has_wall_blocking(i,j,i_,j_):
+                tmp.append(tup)
+        for e in tmp:
+            directions.remove(e)
+        tmp.clear()
+
+        # check visited, remove all cells that have already been visited
+        for tup in directions:
+            if self._cells[tup[0]][tup[1]].visited:
+                tmp.append(tup)
+        for e in tmp:
+            directions.remove(e)
+        tmp.clear()
+
+        # recursively travel to the valid cells
+        for tup in directions:
+            i_,j_ = tup[0],tup[1]
+            # draw a move between curr cell and i_,j_
+            self._cells[i][j].draw_move(self._cells[i_][j_])
+            # recurse to other cell
+            if self._solve_r(i_, j_):
+                # finished!
+                return True
+            # not finished
+            # draw undo move
+            self._cells[i][j].draw_move(self._cells[i_][j_], undo=True)
+
+        # all directions failed
+        return False 
+
+
 
 
 
 
 def main():
+    # create window to be displayed (width, height)
     win = Window(800, 600)
-    ## create some lines
-    #win.draw_line(Line(Point(0,0), Point(20,20)), "black")
-    #win.draw_line(Line(Point(20,20), Point(50,20)), "red")
-    ## create some cells
-    #c0 = Cell(Point(50, 50), Point(60, 60))
-    #c1 = Cell(Point(70, 50), Point(80, 60))
-    #c2 = Cell(Point(100, 100), Point(110, 110))
-    #c2.walls[3] = 0
-    #c3 = Cell(Point(70, 60), Point(80, 70))
 
-    #win.draw_cell(c0, "black")
-    #win.draw_cell(c1, "blue")
-    #win.draw_cell(c2, "black")
-    #win.draw_cell(c3, "black")
-
-    ## draw some moves (lines from one cell to the other)
-    #c0.draw_move(c1, win.canvas)
-    #c1.draw_move(c3, win.canvas)
-
-    # testing Maze
-    # start_x, start_y, rows, cols, size_x, size_y
-    print("4 rows, 5 cols")
-    maze = Maze(10,10,4,5,25,25,win, seed=None)
+    # Maze params: start_x, start_y, rows, cols, size_x, size_y
+    maze = Maze(10,10,8,10,25,25,win,seed=None)
     win.wait_for_close()
 
 if __name__ == "__main__":
