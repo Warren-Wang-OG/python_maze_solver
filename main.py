@@ -136,6 +136,7 @@ class Maze:
         self._create_cells()
         self._break_entrance_and_exit()
         self._break_walls_r(0,0)
+        self._reset_cells_visited()
 
     def _create_cells(self):
         '''
@@ -187,7 +188,6 @@ class Maze:
         self._draw_cells(n,m)
     
 
-    # TODO: this may not be doing everything that I claim it should be doing?
     def _is_valid_cell(self, i, j):
         '''
         helper function to determine if coordinates are valid in our maze
@@ -198,7 +198,7 @@ class Maze:
         i_max = self.rows
         j_max = self.cols
 
-        if i > i_max or j > j_max:
+        if i >= i_max or j >= j_max:
             return False
 
         if i < 0 or j < 0:
@@ -206,9 +206,6 @@ class Maze:
 
         return True
 
-
-
-    # FIXME: not working as intended, out of bounds indexing issues
 
     def _break_walls_r(self, i, j):
         # mark current cell as visited
@@ -220,27 +217,59 @@ class Maze:
 
         # top, down, left, right
         directions = [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]
-        # check bounds and keep only unvisited cells
+        print(f"before any checks: {directions=}")
+
+
+        # check bounds and keep only unvisited cells    
+        tmp = [] # keep track of elements that might need removal
         for tup in directions:
+            print(f"checking {tup}")
             if not self._is_valid_cell(tup[0], tup[1]):
-                directions.remove(tup)
+                print(f"remove {tup}")
+                tmp.append(tup)
+            else:
+                print(f"KEEP {tup}")
+
+        for e in tmp:
+            directions.remove(e)
+        tmp.clear()
+
+        print(f"after bounds {directions=}")
         
         for tup in directions:
+            print(f"checking {tup} if visited")
             i_, j_ = tup[0], tup[1]
             if self._cells[i_][j_].visited == True:
-                directions.remove(tup)
+                print(f"remove {tup}")
+                tmp.append(tup)
+            else:
+                print(f"keep {tup}")
+
+        for e in tmp:
+            directions.remove(e)
+        tmp.clear()
         
-        print(f"{directions=}")
+        print(f"after visited {directions=}")
         
-        while len(directions) > 0:
+        while True:
             # need to check if any nodes have already been visited, remove then from directions
             for tup in directions:
                 i_, j_ = tup[0], tup[1]
                 if self._cells[i_][j_].visited == True:
-                    directions.remove(tup)
+                    tmp.append(tup)
+
+            for e in tmp:
+                directions.remove(e)
+            tmp.clear()
 
             # pick a random direction among the unvisited nodes
-            x = random.randint(0, len(directions)-1)
+            if len(directions) > 1:
+                x = random.randint(0, len(directions)-1)
+            elif len(directions) == 1: # one elem
+                x = 0
+            else:
+                # no more elems, no more cells to traverse to from here
+                return
             tup = directions[x]
             i_,j_ = tup[0], tup[1]
             print(f"chosen ({i_=},{j_=})")
@@ -272,9 +301,15 @@ class Maze:
 
             self._draw_cells(i_, j_)
             # recursively go to cell
+            print("recursive jumping")
             self._break_walls_r(i_, j_)
+            print("return from recursive call")
 
-
+    def _reset_cells_visited(self):
+        # reset all cells visited property to false
+        for i in range(self.rows):
+            for j in range(self.cols):
+                self._cells[i][j].visited = False
 
 
 
@@ -302,7 +337,8 @@ def main():
 
     # testing Maze
     # start_x, start_y, rows, cols, size_x, size_y
-    maze = Maze(10,10,4,5,25,25,win, seed=0)
+    print("4 rows, 5 cols")
+    maze = Maze(10,10,4,5,25,25,win, seed=None)
     win.wait_for_close()
 
 if __name__ == "__main__":
