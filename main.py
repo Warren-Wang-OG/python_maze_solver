@@ -1,10 +1,8 @@
-# Following this project idea:
-# https://boot.dev/project/2b266bb4-2262-49c0-b6d1-75cd8c5e8be8/5b463508-3371-4df9-8a5c-228431af21b9
-# All code, however, is written by me. 
 from __future__ import annotations # type hinting stuff
 from tkinter import Tk, BOTH, Canvas
 import time
 import random
+import sys
 
 class Point:
     def __init__(self, x=0, y=0):
@@ -70,7 +68,6 @@ class Cell:
         else:
             l = Line(Point(self.top_left_corner.x, self.bottom_right_corner.y), self.bottom_right_corner)
             l.draw(self.canvas, "white")
-            
 
     def draw_move(self, to_cell : Cell, undo=False):
         '''
@@ -84,9 +81,6 @@ class Cell:
             l.draw(self.canvas, "gray")
         else:
             l.draw(self.canvas, fill_color)
-
-        
-
 
 class Window:
     def __init__(self, width : int, height : int):
@@ -121,8 +115,6 @@ class Window:
         # clears the cavas
         self.canvas.delete("all")
 
-
-
 class Maze:
     '''
     2d grid of cells
@@ -140,12 +132,7 @@ class Maze:
         # randomness
         if seed != None:
             random.seed(seed)
-
-        self._create_cells()
-        self._break_entrance_and_exit()
-        self._break_walls_r(0,0)
-        self._reset_cells_visited()
-        
+        self._animate_speed = 0.0
 
     def _create_cells(self):
         '''
@@ -170,14 +157,13 @@ class Maze:
             self._animate()
         else:
             print("NOTE: win is None, probably for unit testing")
-        
 
-    def _animate(self):
-        # refresh canvas
-        self.win.redraw()
-        # slow down to allow for seeing the animation
-        time.sleep(0.02)
-
+    def _animate(self, animate_speed=None):
+        self.win.redraw() # refresh canvas
+        if animate_speed == None:
+            time.sleep(self._animate_speed) # slow down to allow for seeing the animation
+        else:
+            time.sleep(animate_speed)
 
     def _break_entrance_and_exit(self):
         '''
@@ -195,7 +181,6 @@ class Maze:
         # call _draw_cells
         self._draw_cells(0,0)
         self._draw_cells(n,m)
-    
 
     def _is_valid_cell(self, i, j):
         '''
@@ -206,15 +191,11 @@ class Maze:
         # index bounds 
         i_max = self.rows
         j_max = self.cols
-
         if i >= i_max or j >= j_max:
             return False
-
         if i < 0 or j < 0:
             return False
-
         return True
-
 
     def _break_walls_r(self, i, j):
         # mark current cell as visited
@@ -407,39 +388,53 @@ class Maze:
         return False 
 
 
+def main():
+    print("One time Window size creation:")
+    width = input("Window Width, default 1000: ")
+    height = input("Window Height, default 1000: ")
+    if width == '': width = 1000
+    if height == '': height = 1000
+    win = Window(width, height)
 
+    while True:
+        print("Maze Generation parameters:")
+        rows = input("Maze Rows (int), default 10: ")
+        cols = input("Maze Columns (int), default 10: ")
+        seed = input("Random Seed (int), default 0: ")
+        generation_speed = input("Generation Speed [1,10] (slow, fast), default 10: ")
+        solve_speed = input("Solve speed [1,10] (slow, fast), default 7: ")
+        if rows == '': rows = 10
+        else: rows = int(rows)
+        if cols == '': cols = 10
+        else: cols = int(cols)
+        if seed == '': seed = 0
+        else: seed = int(seed)
+        if generation_speed == '': generation_speed = 10
+        else: generation_speed = int(generation_speed)
+        if solve_speed == '': solve_speed = 8
+        else: solve_speed = int(solve_speed)
 
+        print("Generating Maze.")
+        maze = Maze(10,10,rows,cols,25,25,win,seed)
+        maze._animate_speed = 0.1 - (generation_speed*0.01)
+        maze._create_cells()
+        maze._break_entrance_and_exit()
+        maze._break_walls_r(0,0)
+        maze._reset_cells_visited()
+        
+        maze._animate_speed = 0.1 - (solve_speed*0.01)
 
-
-def main(interative_mode=False):
-    if interative_mode:
-        while True:
-            width = int(input("Window Width (int): "))
-            height = int(input("Window Height (int): "))
-            win = Window(width, height)
-
-            rows = int(input("Number of Rows (int): "))
-            cols = int(input("Number of Cols (int): "))
-            seed = int(input("Seed (int): "))
-            maze = Maze(10,10,rows,cols,25,25,win,seed)
-
-            solve_algo = int(input("Maze Solving Algorithm? (Give number)\n1. DFS\n"))
-            if solve_algo == 1:
-                maze.dfs_solve()
-            else:
-                print("Invalid choice.")
-            ans = input("Run again? [y/n]: ")
-            if ans.lower() == "n":
-                exit(0)
-            win.clear()
-            del maze
-    else:
-        # Maze params: start_x, start_y, rows, cols, size_x, size_y
-        win = Window(250,250)
-        maze = Maze(10,10,5,5,25,25,win,seed=None)
-        maze.dfs_solve()
-
-    win.wait_for_close()
+        solve_algo = int(input("Maze Solving Algorithm? (Give number)\n1. DFS\nSelection: "))
+        if solve_algo == 1:
+            maze.dfs_solve()
+        else:
+            print("Invalid choice.")
+        ans = input("Run again? [y/n]: ")
+        if ans.lower() == "n":
+            exit()
+        win.clear()
+        del maze
 
 if __name__ == "__main__":
-    main(interative_mode=True)
+    sys.setrecursionlimit(5000) # need higher cap for larger mazes
+    main()
