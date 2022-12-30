@@ -309,6 +309,7 @@ class Maze:
             print(f"Invalid cell encountered in _has_wall_blocking({i=},{j=},{i_=},{j_=})")
             return True
 
+    ### DFS Solve ###
     def dfs_solve(self):
         '''
         return True if maze is solved, else False
@@ -385,7 +386,39 @@ class Maze:
             self._cells[i][j].draw_move(self._cells[i_][j_], undo=True)
 
         # all directions failed
-        return False 
+        return False
+    ###   ###
+
+    def wall_follower_solve(self):
+        """
+        Follows the right hand wall -- only works for simply connected mazes
+        """
+        # for as long as you can, go forward, turning right, left or backing up
+        marked_entrances = [] # (i,j)
+        
+        self._wall_follower_r(i=0,j=0,marked_entrances=marked_entrances)
+        
+
+
+
+    
+    def _wall_follower_r(self, i,j, marked_entrances):
+        # if at entrance
+        pass
+        
+
+
+    def tremaux_solve(self):
+        """
+        Trémaux's algorithm
+        """
+        pass
+
+    def pledge_solve(self):
+        """
+        Pledge algorithm
+        """
+        pass
 
 
 def main():
@@ -424,17 +457,24 @@ def main():
         
         maze._animate_speed = 0.1 - (solve_speed*0.01)
 
-        solve_algo = int(input("Maze Solving Algorithm? (Give number)\n1. DFS\nSelection: "))
-        if solve_algo == 1:
+        solve_algo = input("Maze Solving Algorithm? (Give number)\n1. DFS\n2. Wall Follower (Right Hand Rule)\n3. Pledge Algorithm\n4. Trémaux's algorithm\nSelection: ")
+        while solve_algo not in ["1","2","3","4"]:
+            solve_algo = input("Invalid choice, try again: ")
+        if solve_algo == "1":
             maze.dfs_solve()
-        else:
-            print("Invalid choice.")
+        elif solve_algo == "2":
+            maze.wall_follower_solve()
+        elif solve_algo == "3":
+            maze.pledge_solve()
+        elif solve_algo == "4":
+            maze.tremaux_solve()
         ans = input("Run again? [y/n]: ")
         if ans.lower() == "n":
+            print("Goodbye!")
             exit()
         win.clear()
         del maze
 
 if __name__ == "__main__":
-    sys.setrecursionlimit(5000) # need higher cap for larger mazes
+    sys.setrecursionlimit(5000) # need higher cap for larger mazes if using recursion
     main()
