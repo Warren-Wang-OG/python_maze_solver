@@ -4,6 +4,10 @@ import time
 import random
 import sys
 
+def error_out(msg="something went wrong"):
+    print(msg)
+    exit(-1)
+
 class Point:
     def __init__(self, x=0, y=0):
         # x=0, y=0 top left corner
@@ -309,33 +313,7 @@ class Maze:
             print(f"Invalid cell encountered in _has_wall_blocking({i=},{j=},{i_=},{j_=})")
             return True
 
-    ### DFS Solve ###
-    def dfs_solve(self):
-        '''
-        return True if maze is solved, else False
-        '''
-        if self._solve_r():
-            print("Maze solved!")
-        else:
-            print("Could not solve Maze.")
-
-    def _solve_r(self, i=0, j=0):
-        '''
-        return True if maze is solved, else False
-        goal cell is at (i,j) = (self.rows-1, self.cols-1)
-        start is default (i,j) = (0,0)
-        
-        '''
-        # draw 
-        self._animate()
-
-        # mark current cell as visited
-        self._cells[i][j].visited = True
-
-        # immediately end if at goal cell
-        if i == self.rows-1 and j == self.cols-1:
-            return True
-        
+    def get_valid_directions_from_curr(self, i : int, j : int) -> list: 
         # not at end, continue working thru the maze
         # start with all directions
         # top, down, left, right
@@ -370,7 +348,39 @@ class Maze:
                 tmp.append(tup)
         for e in tmp:
             directions.remove(e)
-        tmp.clear()
+
+        return directions
+
+    ######### DFS Solve #########
+    def dfs_solve(self):
+        '''
+        return True if maze is solved, else False
+        '''
+        if self._solve_r():
+            print("Maze solved!")
+        else:
+            print("Could not solve Maze.")
+
+
+    def _solve_r(self, i=0, j=0):
+        '''
+        return True if maze is solved, else False
+        goal cell is at (i,j) = (self.rows-1, self.cols-1)
+        start is default (i,j) = (0,0)
+        
+        '''
+        # draw 
+        self._animate()
+
+        # mark current cell as visited
+        self._cells[i][j].visited = True
+
+        # immediately end if at goal cell
+        if i == self.rows-1 and j == self.cols-1:
+            return True
+        
+        # get valid directions 
+        directions = self.get_valid_directions_from_curr(i,j)
 
         # recursively travel to the valid cells
         for tup in directions:
@@ -387,37 +397,203 @@ class Maze:
 
         # all directions failed
         return False
-    ###   ###
+
+    #########   #########
 
     def wall_follower_solve(self):
         """
         Follows the right hand wall -- only works for simply connected mazes
         """
-        # for as long as you can, go forward, turning right, left or backing up
-        marked_entrances = [] # (i,j)
+        # define direction facing (0 = right, 1 = left, up = 2, down = 3)
+        curr_facing_direction = 3
         
-        self._wall_follower_r(i=0,j=0,marked_entrances=marked_entrances)
-        
-
-
+        if self._wall_follower_r(i=0,j=0, curr_facing_direction=curr_facing_direction):
+            print("Maze solved")
+        else:
+            print("Maze not solved.")
 
     
-    def _wall_follower_r(self, i,j, marked_entrances):
-        # if at entrance
-        pass
-        
+    def _wall_follower_r(self, i,j, curr_facing_direction):
+        # draw 
+        self._animate()
 
+        # mark current cell as visited
+        self._cells[i][j].visited = True
+
+        # immediately end if at goal cell
+        if i == self.rows-1 and j == self.cols-1:
+            return True
+        
+        # get valid directions 
+        directions = self.get_valid_directions_from_curr(i,j)
+
+        # recursively travel in the right direction ?? 
+        # try just iterative solution for now?
+
+        # establish priotity hierarchy, in this order:
+        # 1. right, 2. left, 3. forward, 4. backward
+        # relative to the curr_facing_direction
+        
+        inds = [None for i in range(4)] # store ptr to valid direction, if existing, in order of established hierarchy
+        for tup in directions:
+            i_,j_ = tup[0],tup[1]
+            if curr_facing_direction == 2: # facing up
+                # right
+                if j_ > j:
+                    inds[0] = tup
+                # left
+                elif j_ < j:
+                    inds[1] = tup
+                # forward (abs up)
+                elif i_ < i:
+                    inds[2] = tup
+                # backward (abs down)
+                elif i_ > i:
+                    inds[3] = tup
+                else:
+                    error_out()
+
+            elif curr_facing_direction == 0: # facing right
+                # right (abs down)
+                if i_ > i:
+                    inds[0] = tup
+                # left (abs up)
+                elif i_ < i:
+                    inds[1] = tup
+                # forward (abs right)
+                elif j_ > j:
+                    inds[2] = tup
+                # backward (abs left)
+                elif j_ < j:
+                    inds[3] = tup
+                else:
+                    error_out()
+
+            elif curr_facing_direction == 3: # facing down
+                # right (abs left)
+                if j_ < j:
+                    inds[0] = tup
+                # left (abs right)
+                elif j_ > j:
+                    inds[1] = tup
+                # forward (abs down)
+                elif i_ > i:
+                    inds[2] = tup
+                # backward (abs up)
+                elif i_ < i:
+                    inds[3] = tup
+                else:
+                    error_out()
+
+            elif curr_facing_direction == 1: # facing left
+                # right (abs up)
+                if i_ < i:
+                    inds[0] = tup
+                # left (abs down)
+                elif i_ > i:
+                    inds[1] = tup
+                # forward (abs left)
+                elif j_ < j:
+                    inds[2] = tup
+                # backward (abs right)
+                elif j_ > j:
+                    inds[3] = tup
+                else:
+                    error_out()
+                
+            else:
+                error_out()
+
+
+        # go in order of hierarchy (right, left, forward, back)
+        for foo, tup in enumerate(inds):
+            if tup == None:
+                continue
+
+            i_,j_ = tup[0], tup[1]
+
+            self._cells[i][j].draw_move(self._cells[i_][j_])
+
+
+            # traverse to i_,j_ with the new current facing direction based on that cell's direction relative to
+            # current cell direction
+            # absolute directions mapping: (0 = right, 1 = left, up = 2, down = 3)
+
+            if curr_facing_direction == 2: # facing up (abs)
+                if foo == 0: # right (abs right)
+                    new_direc = 0
+                elif foo == 1: # left (abs left)
+                    new_direc = 1
+                elif foo == 2: # forward (abs up)
+                    new_direc = 2
+                elif foo == 3: # backward (abs down)
+                    new_direc = 3
+                else:
+                    error_out()
+                
+            elif curr_facing_direction == 0: # facing right 
+                if foo == 0: # right (abs down)
+                    new_direc = 3
+                elif foo == 1: # left (abs up)
+                    new_direc = 2
+                elif foo == 2: # forward (abs right)
+                    new_direc = 0
+                elif foo == 3: # backward (abs left)
+                    new_direc = 1
+                else:
+                    error_out()
+            
+            elif curr_facing_direction == 3: # facing down
+                if foo == 0: # right (abs left)
+                    new_direc = 1
+                elif foo == 1: # left (abs right)
+                    new_direc = 0
+                elif foo == 2: # forward (abs down)
+                    new_direc = 3
+                elif foo == 3: # backward (abs up)
+                    new_direc = 2
+                else:
+                    error_out()
+
+            elif curr_facing_direction == 1: # facing left
+                if foo == 0: # right (abs up)
+                    new_direc = 2
+                elif foo == 1: # left (abs down)
+                    new_direc = 3
+                elif foo == 2: # forward (abs left)
+                    new_direc = 1
+                elif foo == 3: # backward (abs right)
+                    new_direc = 0
+                else:
+                    error_out()
+
+            else:
+                error_out()
+
+            if self._wall_follower_r(i_,j_, curr_facing_direction=new_direc):
+                return True
+            
+            # undo move
+            self._cells[i][j].draw_move(self._cells[i_][j_], undo=True)
+
+        return False # maze not solved
+
+        
 
     def tremaux_solve(self):
         """
         Trémaux's algorithm
         """
+        # for as long as you can, go forward, turning right, left or backing up
+        marked_entrances = [] # (i,j)
+        # TODO: 
         pass
 
     def pledge_solve(self):
         """
         Pledge algorithm
         """
+        # TODO:
         pass
 
 
