@@ -315,7 +315,7 @@ class Maze:
             print(f"Invalid cell encountered in _has_wall_blocking({i=},{j=},{i_=},{j_=})")
             return True
 
-    def get_valid_directions_from_curr(self, i : int, j : int) -> list: 
+    def get_valid_neighbors(self, i : int, j : int) -> list: 
         # not at end, continue working thru the maze
         # start with all directions
         # top, down, left, right
@@ -353,18 +353,18 @@ class Maze:
 
         return directions
 
-    ######### DFS Solve #########
+    
     def dfs_solve(self):
         '''
         return True if maze is solved, else False
         '''
-        if self._solve_r():
+        if self._dfs_solve_r():
             print("Maze solved!")
         else:
             print("Could not solve Maze.")
 
 
-    def _solve_r(self, i=0, j=0):
+    def _dfs_solve_r(self, i=0, j=0):
         '''
         return True if maze is solved, else False
         goal cell is at (i,j) = (self.rows-1, self.cols-1)
@@ -381,26 +381,25 @@ class Maze:
         if i == self.rows-1 and j == self.cols-1:
             return True
         
-        # get valid directions 
-        directions = self.get_valid_directions_from_curr(i,j)
+        # get valid neighbors 
+        neighbors = self.get_valid_neighbors(i,j)
 
         # recursively travel to the valid cells
-        for tup in directions:
+        for tup in neighbors:
             i_,j_ = tup[0],tup[1]
             # draw a move between curr cell and i_,j_
             self._cells[i][j].draw_move(self._cells[i_][j_])
             # recurse to other cell
-            if self._solve_r(i_, j_):
+            if self._dfs_solve_r(i_, j_):
                 # finished!
                 return True
             # not finished
             # draw undo move
             self._cells[i][j].draw_move(self._cells[i_][j_], undo=True)
 
-        # all directions failed
+        # all neighbors failed
         return False
 
-    #########   #########
 
     def wall_follower_solve(self):
         """
@@ -426,18 +425,15 @@ class Maze:
         if i == self.rows-1 and j == self.cols-1:
             return True
         
-        # get valid directions 
-        directions = self.get_valid_directions_from_curr(i,j)
-
-        # recursively travel in the right direction ?? 
-        # try just iterative solution for now?
+        # get valid neighbors 
+        neighbors = self.get_valid_neighbors(i,j)
 
         # establish priotity hierarchy, in this order:
         # 1. right, 2. left, 3. forward, 4. backward
         # relative to the curr_facing_direction
         
         inds = [None for i in range(4)] # store ptr to valid direction, if existing, in order of established hierarchy
-        for tup in directions:
+        for tup in neighbors:
             i_,j_ = tup[0],tup[1]
             if curr_facing_direction == 2: # facing up
                 # right
@@ -601,11 +597,8 @@ class Maze:
         """
 
         queue = []
-        path = []
-        last_cell_part_of_path = None # keep track of the last cell that is part of the direct path (tup (i,j))
-
-        # starting position (0,0)
-        valid_cells = self.get_valid_directions_from_curr(0,0)
+        
+        valid_cells = self.get_valid_neighbors(0,0) # starting position (0,0)
         for tup in valid_cells:
             queue.append(tup)
             self._cells[tup[0]][tup[1]].bfs_parent = (0,0)
@@ -621,11 +614,10 @@ class Maze:
 
             # at goal cell
             if i_ == self.rows-1 and j_ == self.cols-1:
-                # at end cell
                 break
 
             # enqueue new neighbors
-            valid_cells = self.get_valid_directions_from_curr(i_,j_)
+            valid_cells = self.get_valid_neighbors(i_,j_)
             for tup in valid_cells:
                 queue.append(tup)
                 self._cells[tup[0]][tup[1]].bfs_parent = (i_,j_)
@@ -671,7 +663,7 @@ def main():
         cols = input("Maze Columns (int), default 10: ")
         seed = input("Random Seed (int), default 0: ")
         generation_speed = input("Generation Speed [1,10] (slow, fast), default 10: ")
-        solve_speed = input("Solve speed [1,10] (slow, fast), default 7: ")
+        solve_speed = input("Solve speed [1,10] (slow, fast), default 10: ")
         if rows == '': rows = 10
         else: rows = int(rows)
         if cols == '': cols = 10
@@ -680,7 +672,7 @@ def main():
         else: seed = int(seed)
         if generation_speed == '': generation_speed = 10
         else: generation_speed = int(generation_speed)
-        if solve_speed == '': solve_speed = 8
+        if solve_speed == '': solve_speed = 10
         else: solve_speed = int(solve_speed)
 
         # x starting pos, y starting pos, n_rows, n_cols, cell_width, cell_height, window obj, seed
