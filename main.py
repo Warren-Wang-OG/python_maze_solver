@@ -39,6 +39,8 @@ class Cell:
             print("NOTE: self.canvas is None")
         # for traversal
         self.visited = False
+        # for bfs
+        self.bfs_parent = None # tup (i,j)
     
     def draw(self, fill_color : str):
         # left
@@ -122,6 +124,7 @@ class Window:
 class Maze:
     '''
     2d grid of cells
+    TODO: make starting and ending positions modifiable (future edit)
     '''
     def __init__(self, x : int, y : int, rows : int, cols : int, cell_x_size : int, cell_y_size : int, win : Window = None, seed : int = None):
         self.rows = rows
@@ -162,12 +165,11 @@ class Maze:
         else:
             print("NOTE: win is None, probably for unit testing")
 
-    def _animate(self, animate_speed=None):
+    def _animate(self):
         self.win.redraw() # refresh canvas
-        if animate_speed == None:
+        if self._animate_speed != 0:
             time.sleep(self._animate_speed) # slow down to allow for seeing the animation
-        else:
-            time.sleep(animate_speed)
+
 
     def _break_entrance_and_exit(self):
         '''
@@ -578,7 +580,63 @@ class Maze:
 
         return False # maze not solved
 
+
+    def bfs_shortest_path_solve(self):
+        """
+        run a bfs from start till find finish, should be "shortest path" if there exists more than one solution
+
+        create a queue of cells, first in line will be cells closest to start cell, end in line will be furthest away from end cell
+
+        at a cell, create distance array of cells that can be visited from this cell (valid cells), then enqueue all of these cells
+
+        enqueue starting cell and its neighbors, making sure to save starting cell as the "bfs_parent" of the neighboring cells
+        for cell in queue
+            dequeue a cell and visit it
+            check if at end cell, if so finish alg
+            else
+            create list of valid cells to visit from curr cell, update those cells bfs_parents
+            enqueue those cells
+
+        backtrack from goal cell to start cell to draw the shortest path from start to fin using bfs_parent
+        """
+
+        queue = []
+        path = []
+        last_cell_part_of_path = None # keep track of the last cell that is part of the direct path (tup (i,j))
+
+        # starting position (0,0)
+        valid_cells = self.get_valid_directions_from_curr(0,0)
+        for tup in valid_cells:
+            queue.append(tup)
+            self._cells[tup[0]][tup[1]].bfs_parent = (0,0)
         
+        while True:
+            next_ = queue.pop(0)
+            i_,j_ = next_[0],next_[1]
+            self._cells[i_][j_].visited = True
+
+            parent_i, parent_j = self._cells[i_][j_].bfs_parent[0], self._cells[i_][j_].bfs_parent[1]
+            self._cells[i_][j_].draw_move(self._cells[parent_i][parent_j], undo=True)
+            self._animate()
+
+            # at goal cell
+            if i_ == self.rows-1 and j_ == self.cols-1:
+                # at end cell
+                break
+
+            # enqueue new neighbors
+            valid_cells = self.get_valid_directions_from_curr(i_,j_)
+            for tup in valid_cells:
+                queue.append(tup)
+                self._cells[tup[0]][tup[1]].bfs_parent = (i_,j_)
+
+        # backtrack from the goal cell to the starting cell ? 
+        while (i_,j_) != (0,0):
+            parent_i, parent_j = self._cells[i_][j_].bfs_parent[0], self._cells[i_][j_].bfs_parent[1]
+            self._cells[i_][j_].draw_move(self._cells[parent_i][parent_j])
+            self._animate()
+            i_,j_ = parent_i, parent_j
+
 
     def tremaux_solve(self):
         """
@@ -595,6 +653,8 @@ class Maze:
         """
         # TODO:
         pass
+
+
 
 
 def main():
@@ -623,27 +683,51 @@ def main():
         if solve_speed == '': solve_speed = 8
         else: solve_speed = int(solve_speed)
 
-        print("Generating Maze.")
+        # x starting pos, y starting pos, n_rows, n_cols, cell_width, cell_height, window obj, seed
         maze = Maze(10,10,rows,cols,25,25,win,seed)
         maze._animate_speed = 0.1 - (generation_speed*0.01)
+        print(f"Generation delay per op: {maze._animate_speed}s")
+        print("Generating Maze.")
         maze._create_cells()
         maze._break_entrance_and_exit()
         maze._break_walls_r(0,0)
         maze._reset_cells_visited()
         
-        maze._animate_speed = 0.1 - (solve_speed*0.01)
-
-        solve_algo = input("Maze Solving Algorithm? (Give number)\n1. DFS\n2. Wall Follower (Right Hand Rule)\n3. Pledge Algorithm\n4. Trémaux's algorithm\nSelection: ")
-        while solve_algo not in ["1","2","3","4"]:
+        
+        solve_algo = input("Maze Solving Algorithm? (Give number)\n1. DFS\n2. BFS\n3. Wall Follower (Right Hand Rule)\n4. Pledge Algorithm\n5. Trémaux's algorithm\nSelection: ")
+        while solve_algo not in ["1","2","3","4","5"]:
             solve_algo = input("Invalid choice, try again: ")
+
+        maze._animate_speed = 0.1 - (solve_speed*0.01)
+        print(f"Solve delay per op: {maze._animate_speed}s")
+
         if solve_algo == "1":
+            print("Running DFS...")
+            start_time = time.time()
             maze.dfs_solve()
+            print(f"DFS took: {time.time() - start_time}s")
         elif solve_algo == "2":
-            maze.wall_follower_solve()
+            print("Running BFS...")
+            start_time = time.time()
+            maze.bfs_shortest_path_solve()
+            print(f"BFS took: {time.time() - start_time}s")
         elif solve_algo == "3":
-            maze.pledge_solve()
+            print("Running Wall Follower...")
+            start_time = time.time()
+            maze.wall_follower_solve()
+            print(f"Wall Follower took: {time.time() - start_time}s")
         elif solve_algo == "4":
-            maze.tremaux_solve()
+            # print("Running Pledge...")
+            # start_time = time.time()
+            # maze.pledge_solve()
+            # print(f"Pledge took: {time.time() - start_time}s")
+            print("Not implemented yet. WIP")
+        elif solve_algo == "5":
+            # print("Running Tremaux...")
+            # start_time = time.time()
+            # maze.tremaux_solve()
+            # print(f"Tremaux took: {time.time() - start_time}s")
+            print("Not implemented yet. WIP")
         ans = input("Run again? [y/n]: ")
         if ans.lower() == "n":
             print("Goodbye!")
