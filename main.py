@@ -647,6 +647,8 @@ class Maze:
         pass
 
 
+# TODO: implement clearing the maze w/o having to reconstruct everything (save time!) to allow running algs back to back on the same maze faster.
+
 
 
 def main():
