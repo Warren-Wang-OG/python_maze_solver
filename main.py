@@ -4,6 +4,10 @@ import time
 import random
 import sys
 
+def error_out(msg="something went wrong"):
+    print(msg)
+    exit(-1)
+
 class Point:
     def __init__(self, x=0, y=0):
         # x=0, y=0 top left corner
@@ -35,6 +39,8 @@ class Cell:
             print("NOTE: self.canvas is None")
         # for traversal
         self.visited = False
+        # for bfs
+        self.bfs_parent = None # tup (i,j)
     
     def draw(self, fill_color : str):
         # left
@@ -118,6 +124,7 @@ class Window:
 class Maze:
     '''
     2d grid of cells
+    TODO: make starting and ending positions modifiable (future edit)
     '''
     def __init__(self, x : int, y : int, rows : int, cols : int, cell_x_size : int, cell_y_size : int, win : Window = None, seed : int = None):
         self.rows = rows
@@ -158,12 +165,11 @@ class Maze:
         else:
             print("NOTE: win is None, probably for unit testing")
 
-    def _animate(self, animate_speed=None):
+    def _animate(self):
         self.win.redraw() # refresh canvas
-        if animate_speed == None:
+        if self._animate_speed != 0:
             time.sleep(self._animate_speed) # slow down to allow for seeing the animation
-        else:
-            time.sleep(animate_speed)
+
 
     def _break_entrance_and_exit(self):
         '''
@@ -309,32 +315,7 @@ class Maze:
             print(f"Invalid cell encountered in _has_wall_blocking({i=},{j=},{i_=},{j_=})")
             return True
 
-    def dfs_solve(self):
-        '''
-        return True if maze is solved, else False
-        '''
-        if self._solve_r():
-            print("Maze solved!")
-        else:
-            print("Could not solve Maze.")
-
-    def _solve_r(self, i=0, j=0):
-        '''
-        return True if maze is solved, else False
-        goal cell is at (i,j) = (self.rows-1, self.cols-1)
-        start is default (i,j) = (0,0)
-        
-        '''
-        # draw 
-        self._animate()
-
-        # mark current cell as visited
-        self._cells[i][j].visited = True
-
-        # immediately end if at goal cell
-        if i == self.rows-1 and j == self.cols-1:
-            return True
-        
+    def get_valid_neighbors(self, i : int, j : int) -> list: 
         # not at end, continue working thru the maze
         # start with all directions
         # top, down, left, right
@@ -369,23 +350,305 @@ class Maze:
                 tmp.append(tup)
         for e in tmp:
             directions.remove(e)
-        tmp.clear()
+
+        return directions
+
+    
+    def dfs_solve(self):
+        '''
+        return True if maze is solved, else False
+        '''
+        if self._dfs_solve_r():
+            print("Maze solved!")
+        else:
+            print("Could not solve Maze.")
+
+
+    def _dfs_solve_r(self, i=0, j=0):
+        '''
+        return True if maze is solved, else False
+        goal cell is at (i,j) = (self.rows-1, self.cols-1)
+        start is default (i,j) = (0,0)
+        
+        '''
+        # draw 
+        self._animate()
+
+        # mark current cell as visited
+        self._cells[i][j].visited = True
+
+        # immediately end if at goal cell
+        if i == self.rows-1 and j == self.cols-1:
+            return True
+        
+        # get valid neighbors 
+        neighbors = self.get_valid_neighbors(i,j)
 
         # recursively travel to the valid cells
-        for tup in directions:
+        for tup in neighbors:
             i_,j_ = tup[0],tup[1]
             # draw a move between curr cell and i_,j_
             self._cells[i][j].draw_move(self._cells[i_][j_])
             # recurse to other cell
-            if self._solve_r(i_, j_):
+            if self._dfs_solve_r(i_, j_):
                 # finished!
                 return True
             # not finished
             # draw undo move
             self._cells[i][j].draw_move(self._cells[i_][j_], undo=True)
 
-        # all directions failed
-        return False 
+        # all neighbors failed
+        return False
+
+
+    def wall_follower_solve(self):
+        """
+        Follows the right hand wall -- only works for simply connected mazes
+        """
+        # define direction facing (0 = right, 1 = left, up = 2, down = 3)
+        curr_facing_direction = 3
+        
+        if self._wall_follower_r(i=0,j=0, curr_facing_direction=curr_facing_direction):
+            print("Maze solved")
+        else:
+            print("Maze not solved.")
+
+    
+    def _wall_follower_r(self, i,j, curr_facing_direction):
+        # draw 
+        self._animate()
+
+        # mark current cell as visited
+        self._cells[i][j].visited = True
+
+        # immediately end if at goal cell
+        if i == self.rows-1 and j == self.cols-1:
+            return True
+        
+        # get valid neighbors 
+        neighbors = self.get_valid_neighbors(i,j)
+
+        # establish priotity hierarchy, in this order:
+        # 1. right, 2. left, 3. forward, 4. backward
+        # relative to the curr_facing_direction
+        
+        inds = [None for i in range(4)] # store ptr to valid direction, if existing, in order of established hierarchy
+        for tup in neighbors:
+            i_,j_ = tup[0],tup[1]
+            if curr_facing_direction == 2: # facing up
+                # right
+                if j_ > j:
+                    inds[0] = tup
+                # left
+                elif j_ < j:
+                    inds[1] = tup
+                # forward (abs up)
+                elif i_ < i:
+                    inds[2] = tup
+                # backward (abs down)
+                elif i_ > i:
+                    inds[3] = tup
+                else:
+                    error_out()
+
+            elif curr_facing_direction == 0: # facing right
+                # right (abs down)
+                if i_ > i:
+                    inds[0] = tup
+                # left (abs up)
+                elif i_ < i:
+                    inds[1] = tup
+                # forward (abs right)
+                elif j_ > j:
+                    inds[2] = tup
+                # backward (abs left)
+                elif j_ < j:
+                    inds[3] = tup
+                else:
+                    error_out()
+
+            elif curr_facing_direction == 3: # facing down
+                # right (abs left)
+                if j_ < j:
+                    inds[0] = tup
+                # left (abs right)
+                elif j_ > j:
+                    inds[1] = tup
+                # forward (abs down)
+                elif i_ > i:
+                    inds[2] = tup
+                # backward (abs up)
+                elif i_ < i:
+                    inds[3] = tup
+                else:
+                    error_out()
+
+            elif curr_facing_direction == 1: # facing left
+                # right (abs up)
+                if i_ < i:
+                    inds[0] = tup
+                # left (abs down)
+                elif i_ > i:
+                    inds[1] = tup
+                # forward (abs left)
+                elif j_ < j:
+                    inds[2] = tup
+                # backward (abs right)
+                elif j_ > j:
+                    inds[3] = tup
+                else:
+                    error_out()
+                
+            else:
+                error_out()
+
+
+        # go in order of hierarchy (right, left, forward, back)
+        for foo, tup in enumerate(inds):
+            if tup == None:
+                continue
+
+            i_,j_ = tup[0], tup[1]
+
+            self._cells[i][j].draw_move(self._cells[i_][j_])
+
+
+            # traverse to i_,j_ with the new current facing direction based on that cell's direction relative to
+            # current cell direction
+            # absolute directions mapping: (0 = right, 1 = left, up = 2, down = 3)
+
+            if curr_facing_direction == 2: # facing up (abs)
+                if foo == 0: # right (abs right)
+                    new_direc = 0
+                elif foo == 1: # left (abs left)
+                    new_direc = 1
+                elif foo == 2: # forward (abs up)
+                    new_direc = 2
+                elif foo == 3: # backward (abs down)
+                    new_direc = 3
+                else:
+                    error_out()
+                
+            elif curr_facing_direction == 0: # facing right 
+                if foo == 0: # right (abs down)
+                    new_direc = 3
+                elif foo == 1: # left (abs up)
+                    new_direc = 2
+                elif foo == 2: # forward (abs right)
+                    new_direc = 0
+                elif foo == 3: # backward (abs left)
+                    new_direc = 1
+                else:
+                    error_out()
+            
+            elif curr_facing_direction == 3: # facing down
+                if foo == 0: # right (abs left)
+                    new_direc = 1
+                elif foo == 1: # left (abs right)
+                    new_direc = 0
+                elif foo == 2: # forward (abs down)
+                    new_direc = 3
+                elif foo == 3: # backward (abs up)
+                    new_direc = 2
+                else:
+                    error_out()
+
+            elif curr_facing_direction == 1: # facing left
+                if foo == 0: # right (abs up)
+                    new_direc = 2
+                elif foo == 1: # left (abs down)
+                    new_direc = 3
+                elif foo == 2: # forward (abs left)
+                    new_direc = 1
+                elif foo == 3: # backward (abs right)
+                    new_direc = 0
+                else:
+                    error_out()
+
+            else:
+                error_out()
+
+            if self._wall_follower_r(i_,j_, curr_facing_direction=new_direc):
+                return True
+            
+            # undo move
+            self._cells[i][j].draw_move(self._cells[i_][j_], undo=True)
+
+        return False # maze not solved
+
+
+    def bfs_shortest_path_solve(self):
+        """
+        run a bfs from start till find finish, should be "shortest path" if there exists more than one solution
+
+        create a queue of cells, first in line will be cells closest to start cell, end in line will be furthest away from end cell
+
+        at a cell, create distance array of cells that can be visited from this cell (valid cells), then enqueue all of these cells
+
+        enqueue starting cell and its neighbors, making sure to save starting cell as the "bfs_parent" of the neighboring cells
+        for cell in queue
+            dequeue a cell and visit it
+            check if at end cell, if so finish alg
+            else
+            create list of valid cells to visit from curr cell, update those cells bfs_parents
+            enqueue those cells
+
+        backtrack from goal cell to start cell to draw the shortest path from start to fin using bfs_parent
+        """
+
+        queue = []
+        
+        valid_cells = self.get_valid_neighbors(0,0) # starting position (0,0)
+        for tup in valid_cells:
+            queue.append(tup)
+            self._cells[tup[0]][tup[1]].bfs_parent = (0,0)
+        
+        while True:
+            next_ = queue.pop(0)
+            i_,j_ = next_[0],next_[1]
+            self._cells[i_][j_].visited = True
+
+            parent_i, parent_j = self._cells[i_][j_].bfs_parent[0], self._cells[i_][j_].bfs_parent[1]
+            self._cells[i_][j_].draw_move(self._cells[parent_i][parent_j], undo=True)
+            self._animate()
+
+            # at goal cell
+            if i_ == self.rows-1 and j_ == self.cols-1:
+                break
+
+            # enqueue new neighbors
+            valid_cells = self.get_valid_neighbors(i_,j_)
+            for tup in valid_cells:
+                queue.append(tup)
+                self._cells[tup[0]][tup[1]].bfs_parent = (i_,j_)
+
+        # backtrack from the goal cell to the starting cell ? 
+        while (i_,j_) != (0,0):
+            parent_i, parent_j = self._cells[i_][j_].bfs_parent[0], self._cells[i_][j_].bfs_parent[1]
+            self._cells[i_][j_].draw_move(self._cells[parent_i][parent_j])
+            self._animate()
+            i_,j_ = parent_i, parent_j
+
+
+    def tremaux_solve(self):
+        """
+        Trémaux's algorithm
+        """
+        # for as long as you can, go forward, turning right, left or backing up
+        marked_entrances = [] # (i,j)
+        # TODO: 
+        pass
+
+    def pledge_solve(self):
+        """
+        Pledge algorithm
+        """
+        # TODO:
+        pass
+
+
+# TODO: implement clearing the maze w/o having to reconstruct everything (save time!) to allow running algs back to back on the same maze faster.
+
 
 
 def main():
@@ -402,7 +665,7 @@ def main():
         cols = input("Maze Columns (int), default 10: ")
         seed = input("Random Seed (int), default 0: ")
         generation_speed = input("Generation Speed [1,10] (slow, fast), default 10: ")
-        solve_speed = input("Solve speed [1,10] (slow, fast), default 7: ")
+        solve_speed = input("Solve speed [1,10] (slow, fast), default 10: ")
         if rows == '': rows = 10
         else: rows = int(rows)
         if cols == '': cols = 10
@@ -411,30 +674,61 @@ def main():
         else: seed = int(seed)
         if generation_speed == '': generation_speed = 10
         else: generation_speed = int(generation_speed)
-        if solve_speed == '': solve_speed = 8
+        if solve_speed == '': solve_speed = 10
         else: solve_speed = int(solve_speed)
 
-        print("Generating Maze.")
+        # x starting pos, y starting pos, n_rows, n_cols, cell_width, cell_height, window obj, seed
         maze = Maze(10,10,rows,cols,25,25,win,seed)
         maze._animate_speed = 0.1 - (generation_speed*0.01)
+        print(f"Generation delay per op: {maze._animate_speed}s")
+        print("Generating Maze.")
         maze._create_cells()
         maze._break_entrance_and_exit()
         maze._break_walls_r(0,0)
         maze._reset_cells_visited()
         
-        maze._animate_speed = 0.1 - (solve_speed*0.01)
+        
+        solve_algo = input("Maze Solving Algorithm? (Give number)\n1. DFS\n2. BFS\n3. Wall Follower (Right Hand Rule)\n4. Pledge Algorithm\n5. Trémaux's algorithm\nSelection: ")
+        while solve_algo not in ["1","2","3","4","5"]:
+            solve_algo = input("Invalid choice, try again: ")
 
-        solve_algo = int(input("Maze Solving Algorithm? (Give number)\n1. DFS\nSelection: "))
-        if solve_algo == 1:
+        maze._animate_speed = 0.1 - (solve_speed*0.01)
+        print(f"Solve delay per op: {maze._animate_speed}s")
+
+        if solve_algo == "1":
+            print("Running DFS...")
+            start_time = time.time()
             maze.dfs_solve()
-        else:
-            print("Invalid choice.")
+            print(f"DFS took: {time.time() - start_time}s")
+        elif solve_algo == "2":
+            print("Running BFS...")
+            start_time = time.time()
+            maze.bfs_shortest_path_solve()
+            print(f"BFS took: {time.time() - start_time}s")
+        elif solve_algo == "3":
+            print("Running Wall Follower...")
+            start_time = time.time()
+            maze.wall_follower_solve()
+            print(f"Wall Follower took: {time.time() - start_time}s")
+        elif solve_algo == "4":
+            # print("Running Pledge...")
+            # start_time = time.time()
+            # maze.pledge_solve()
+            # print(f"Pledge took: {time.time() - start_time}s")
+            print("Not implemented yet. WIP")
+        elif solve_algo == "5":
+            # print("Running Tremaux...")
+            # start_time = time.time()
+            # maze.tremaux_solve()
+            # print(f"Tremaux took: {time.time() - start_time}s")
+            print("Not implemented yet. WIP")
         ans = input("Run again? [y/n]: ")
         if ans.lower() == "n":
+            print("Goodbye!")
             exit()
         win.clear()
         del maze
 
 if __name__ == "__main__":
-    sys.setrecursionlimit(5000) # need higher cap for larger mazes
+    sys.setrecursionlimit(5000) # need higher cap for larger mazes if using recursion
     main()
