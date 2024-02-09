@@ -663,14 +663,14 @@ def main():
         print("Maze Generation parameters:")
         rows = input("Maze Rows (int), default 10: ")
         cols = input("Maze Columns (int), default 10: ")
-        seed = input("Random Seed (int), default 0: ")
+        seed = input("Random Seed (int), default random: ")
         generation_speed = input("Generation Speed [1,10] (slow, fast), default 10: ")
         solve_speed = input("Solve speed [1,10] (slow, fast), default 10: ")
         if rows == '': rows = 10
         else: rows = int(rows)
         if cols == '': cols = 10
         else: cols = int(cols)
-        if seed == '': seed = 0
+        if seed == '': seed = None
         else: seed = int(seed)
         if generation_speed == '': generation_speed = 10
         else: generation_speed = int(generation_speed)
@@ -688,7 +688,8 @@ def main():
         maze._reset_cells_visited()
         
         
-        solve_algo = input("Maze Solving Algorithm? (Give number)\n1. DFS\n2. BFS\n3. Wall Follower (Right Hand Rule)\n4. Pledge Algorithm\n5. Trémaux's algorithm\nSelection: ")
+        # solve_algo = input("Maze Solving Algorithm? (Give number)\n1. DFS\n2. BFS\n3. Wall Follower (Right Hand Rule)\n4. Pledge Algorithm\n5. Trémaux's algorithm\nSelection: ")
+        solve_algo = input("Maze Solving Algorithm? (Give number)\n1. DFS\n2. BFS\n3. Wall Follower (Right Hand Rule)\nSelection: ")
         while solve_algo not in ["1","2","3","4","5"]:
             solve_algo = input("Invalid choice, try again: ")
 
