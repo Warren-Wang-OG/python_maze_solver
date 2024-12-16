@@ -3,7 +3,7 @@
 ## Getting Started
 Run main.py with python 3.10.x or higher. No additional packages from pip or conda required.
 
-Alternatively just download the [release]() and run the portable version for Windows made using `pyinstaller main.py --windowed`.
+Alternatively just download the [release](https://github.com/warrenmwang/python_maze_solver/releases/tag/v1.0.0) and run the portable version for Windows made using `pyinstaller main.py --windowed`.
 
 ## Algorithms
 - **Depth First Search**: both generation and one solve method
