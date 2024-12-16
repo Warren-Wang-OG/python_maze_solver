@@ -1,3 +1,7 @@
 notes.txt
 scratchpadd.xopp
 __pycache__/
+build/
+dist/
+*.spec
+*.bat
